@@ -1,0 +1,14 @@
+name: ecommerce-intelligence-platform
+
+services:
+  phase0-check:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    command:
+      - python
+      - -c
+      - >-
+        import platform;
+        print("Phase 0 container is ready");
+        print(f"Python {platform.python_version()}")
