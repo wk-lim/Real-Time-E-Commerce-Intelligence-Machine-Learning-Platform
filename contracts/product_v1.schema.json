@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:ecommerce-intelligence:contract:product:v1",
+  "title": "Synerise Product Record V1",
+  "description": "Canonical product reference record published to the compacted product topic.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_id",
+    "sku",
+    "category_id",
+    "price_bucket",
+    "name_vector_raw",
+    "source",
+    "replay"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "record_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "sku": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "category_id": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "price_bucket": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 99,
+      "description": "Anonymized quantile bucket, not a monetary price."
+    },
+    "name_vector_raw": {
+      "type": "string",
+      "pattern": "^\\[.*\\]$",
+      "description": "Original string-serialized product-name embedding."
+    },
+    "source": {
+      "$ref": "#/$defs/source"
+    },
+    "replay": {
+      "$ref": "#/$defs/replay"
+    }
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dataset",
+        "file",
+        "row_number"
+      ],
+      "properties": {
+        "dataset": {
+          "const": "synerise_recsys_2025"
+        },
+        "file": {
+          "const": "product_properties.parquet"
+        },
+        "row_number": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Zero-based physical row number in the source file."
+        }
+      }
+    },
+    "replay": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id",
+        "published_at"
+      ],
+      "properties": {
+        "run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "published_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

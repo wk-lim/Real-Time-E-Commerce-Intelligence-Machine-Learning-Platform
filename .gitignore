@@ -26,3 +26,14 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Local datasets and streaming state
+
+data/raw/*
+!data/raw/.gitkeep
+
+data/processed/*
+!data/processed/.gitkeep
+
+data/checkpoints/*
+!data/checkpoints/.gitkeep

@@ -1,0 +1,201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:ecommerce-intelligence:contract:event:v1",
+  "title": "Synerise Behavioral Event V1",
+  "description": "Canonical envelope for replayed Synerise behavioral events.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "event_id",
+    "event_type",
+    "event_time",
+    "event_time_timezone",
+    "client_id",
+    "payload",
+    "source",
+    "replay"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "event_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "event_type": {
+      "enum": [
+        "add_to_cart",
+        "page_visit",
+        "product_buy",
+        "remove_from_cart",
+        "search_query"
+      ]
+    },
+    "event_time": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$",
+      "description": "Original timezone-free timestamp supplied by Synerise."
+    },
+    "event_time_timezone": {
+      "type": "null",
+      "description": "The source dataset does not identify a timezone."
+    },
+    "client_id": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "payload": {
+      "type": "object"
+    },
+    "source": {
+      "$ref": "#/$defs/source"
+    },
+    "replay": {
+      "$ref": "#/$defs/replay"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "enum": [
+              "add_to_cart",
+              "product_buy",
+              "remove_from_cart"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/product_event_payload"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "page_visit"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/page_visit_payload"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "search_query"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/search_query_payload"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "product_event_payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sku"
+      ],
+      "properties": {
+        "sku": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "page_visit_payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "url_id"
+      ],
+      "properties": {
+        "url_id": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "search_query_payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "query_vector_raw"
+      ],
+      "properties": {
+        "query_vector_raw": {
+          "type": "string",
+          "pattern": "^\\[.*\\]$"
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dataset",
+        "file",
+        "row_number"
+      ],
+      "properties": {
+        "dataset": {
+          "const": "synerise_recsys_2025"
+        },
+        "file": {
+          "enum": [
+            "add_to_cart.parquet",
+            "page_visit.parquet",
+            "product_buy.parquet",
+            "remove_from_cart.parquet",
+            "search_query.parquet"
+          ]
+        },
+        "row_number": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Zero-based physical row number in the source file."
+        }
+      }
+    },
+    "replay": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id",
+        "published_at"
+      ],
+      "properties": {
+        "run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "published_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "UTC time when the producer published the replayed event."
+        }
+      }
+    }
+  }
+}
