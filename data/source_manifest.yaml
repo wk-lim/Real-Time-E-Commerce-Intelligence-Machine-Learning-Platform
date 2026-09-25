@@ -1,0 +1,56 @@
+dataset:
+  name: "Synerise RecSys Challenge 2025"
+  provider: "Synerise"
+  release_year: 2025
+  source_page: "https://recsys.synerise.com/data-set"
+  download_url: "https://data.recsys.synerise.com/dataset/synerise_dataset.tar.gz"
+  accessed_on: "2026-09-24"
+
+archive:
+  filename: "synerise_dataset.tar.gz"
+  size_bytes: 2062884710
+  sha256: "E90B8FDED8BC7A87B8C51CED7D5EEAD75F6DEB09852EA701F5F22934E78B66E7"
+
+classification:
+  origin: "Anonymized real-world online-retailer interactions"
+  event_period_start: "2022-06-23 00:10:00"
+  event_period_end: "2022-12-08 00:09:59"
+  release_note: "Released for the 2025 challenge; underlying interactions occurred in 2022."
+  streaming_mode: "Historical event replay"
+  synthetic: false
+  live_feed: false
+
+usage:
+  raw_data_committed_to_git: false
+  redistribution_assumed: false
+  license_note: "A dataset-specific redistribution license is not clearly stated on the public source page. Verify provider terms before redistributing source or derived data."
+
+observed_snapshot:
+  verified_on: "2026-09-24"
+  parquet_files: 6
+  behavioral_event_rows: 225224262
+  product_rows: 1534050
+  tables:
+    add_to_cart:
+      rows: 7541117
+    page_visit:
+      rows: 199451980
+    product_buy:
+      rows: 2318502
+    remove_from_cart:
+      rows: 2688894
+    search_query:
+      rows: 13223769
+    product_properties:
+      rows: 1534050
+  quality:
+    timestamp_storage_type: "string"
+    columns_with_reported_nulls: 0
+    client_id_min: 0
+    client_id_max: 23929218
+    sku_min: 0
+    sku_max: 1623140
+    category_min: 0
+    category_max: 6988
+    price_bucket_min: 0
+    price_bucket_max: 99
