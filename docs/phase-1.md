@@ -53,6 +53,22 @@ The source archive is identified by the SHA-256 checksum recorded in `data/sourc
 
 Source values will be preserved in the event envelope. Invalid records will be routed to a dead-letter topic instead of silently discarded or corrected.
 
+## Local Kafka topology
+
+The development environment uses the official Apache Kafka 4.3.1 image in
+single-node KRaft combined mode. The broker exposes `localhost:9092` to host
+applications and `kafka:19092` to other Compose services.
+
+| Topic | Partitions | Local policy |
+|---|---:|---|
+| `ecommerce.events.v1` | 6 | Seven-day retention |
+| `ecommerce.products.v1` | 3 | Log compaction |
+| `ecommerce.events.dlq.v1` | 3 | Thirty-day retention |
+
+The single broker and replication factor of one are appropriate only for local
+development. A production deployment would require multiple brokers,
+replication, authentication, encryption, access control, and monitoring.
+
 ## Deliverables
 
 - [x] Select and document the real-world dataset
@@ -64,7 +80,7 @@ Source values will be preserved in the event envelope. Invalid records will be r
 - [x] Implement contract validation tests
 - [x] Implement deterministic event identifiers
 - [ ] Implement historical replay producer
-- [ ] Add Kafka services to Docker Compose
+- [x] Add Kafka services to Docker Compose
 - [ ] Verify replay, ordering and dead-letter handling
 
 ## Completion criteria
