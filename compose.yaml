@@ -13,6 +13,18 @@ services:
         print("Phase 0 container is ready");
         print(f"Python {platform.python_version()}")
 
+  spark-ivy-init:
+    image: spark:${SPARK_VERSION:-4.2.0}-java21-python3
+    user: "0:0"
+    entrypoint:
+      - /bin/sh
+      - -c
+    command:
+      - chown -R spark:spark /tmp/spark-ivy
+    volumes:
+      - spark-ivy:/tmp/spark-ivy
+    restart: "no"
+
   spark:
     image: spark:${SPARK_VERSION:-4.2.0}-java21-python3
     hostname: spark
@@ -20,6 +32,8 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
+      spark-ivy-init:
+        condition: service_completed_successfully
     working_dir: /opt/project
     environment:
       PYTHONPATH: /opt/project/src
