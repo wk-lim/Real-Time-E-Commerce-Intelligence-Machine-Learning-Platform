@@ -9,26 +9,31 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from time import monotonic, sleep
-from typing import Any
-from uuid import UUID, uuid4
+from typing import Any, Literal
+from uuid import UUID, uuid4, uuid5
 
 import pyarrow.parquet as pq
 from confluent_kafka import KafkaError, Message, Producer
 
 from ecommerce_intelligence.contract_validation import (
+    validate_dlq,
     validate_event,
     validate_product,
 )
 from ecommerce_intelligence.ingestion.transform import (
+    DATASET_NAME,
+    DATASET_NAMESPACE,
     EVENT_TYPE_BY_FILE,
     build_event,
     build_product,
+    utc_timestamp,
 )
 
 
 EVENT_TOPIC = "ecommerce.events.v1"
 PRODUCT_TOPIC = "ecommerce.products.v1"
 PRODUCT_SOURCE_FILE = "product_properties.parquet"
+DLQ_TOPIC = "ecommerce.events.dlq.v1"
 
 SOURCE_FILES = (
     *EVENT_TYPE_BY_FILE.keys(),
@@ -151,6 +156,56 @@ def build_record(
     # Kafka uses client_id as the event key so events belonging
     # to the same client are routed to the same partition.
     return record, EVENT_TOPIC, str(record["client_id"])
+
+
+def build_dlq_record(
+    *,
+    source_file: str,
+    row_number: int,
+    row: dict[str, Any],
+    run_id: UUID,
+    original_topic: str,
+    stage: Literal[
+        "transformation",
+        "contract_validation",
+    ],
+    error: Exception,
+    failed_at: datetime,
+) -> tuple[dict[str, Any], str, str]:
+    dlq_id = str(
+        uuid5(
+            DATASET_NAMESPACE,
+            f"dlq:{source_file}:{row_number}",
+        )
+    )
+
+    record = {
+        "schema_version": "1.0.0",
+        "dlq_id": dlq_id,
+        "original_topic": original_topic,
+        "source": {
+            "dataset": DATASET_NAME,
+            "file": source_file,
+            "row_number": row_number,
+        },
+        "replay": {
+            "run_id": str(run_id),
+            "failed_at": utc_timestamp(failed_at),
+        },
+        "error": {
+            "stage": stage,
+            "type": type(error).__name__,
+            "message": (
+                str(error)
+                or "Unspecified processing error"
+            ),
+        },
+        "raw_record": dict(row),
+    }
+
+    validate_dlq(record)
+
+    return record, DLQ_TOPIC, dlq_id
 
 
 def validate_record(
@@ -330,7 +385,14 @@ def run(args: argparse.Namespace) -> int:
         else create_producer(args.bootstrap_servers)
     )
 
+    original_topic = (
+        PRODUCT_TOPIC
+        if args.source_file == PRODUCT_SOURCE_FILE
+        else EVENT_TOPIC
+    )
+
     processed_count = 0
+    dlq_count = 0
     started_at = monotonic()
 
     print(f"Replay run ID: {run_id}")
@@ -357,17 +419,37 @@ def run(args: argparse.Namespace) -> int:
                 row=row,
                 run_id=run_id,
             )
-
-            if args.validate:
-                validate_record(
-                    record,
-                    source_file=args.source_file,
-                )
         except Exception as error:
-            raise ValueError(
-                f"Failed processing "
-                f"{args.source_file} row {row_number}: {error}"
-            ) from error
+            record, topic, key = build_dlq_record(
+                source_file=args.source_file,
+                row_number=row_number,
+                row=row,
+                run_id=run_id,
+                original_topic=original_topic,
+                stage="transformation",
+                error=error,
+                failed_at=datetime.now(timezone.utc),
+            )
+            dlq_count += 1
+        else:
+            if args.validate:
+                try:
+                    validate_record(
+                        record,
+                        source_file=args.source_file,
+                    )
+                except Exception as error:
+                    record, topic, key = build_dlq_record(
+                        source_file=args.source_file,
+                        row_number=row_number,
+                        row=row,
+                        run_id=run_id,
+                        original_topic=original_topic,
+                        stage="contract_validation",
+                        error=error,
+                        failed_at=datetime.now(timezone.utc),
+                    )
+                    dlq_count += 1
 
         value = serialize_record(record)
 
@@ -414,6 +496,7 @@ def run(args: argparse.Namespace) -> int:
     print()
     print("Replay completed")
     print(f"Processed: {processed_count:,}")
+    print(f"Dead-lettered: {dlq_count:,}")
     print(f"Delivered: {tracker.delivered:,}")
     print(f"Failed: {tracker.failed:,}")
     print(f"Elapsed seconds: {elapsed_seconds:.2f}")

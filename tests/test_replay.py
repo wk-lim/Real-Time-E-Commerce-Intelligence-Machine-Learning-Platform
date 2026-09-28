@@ -5,6 +5,7 @@ import json
 from argparse import Namespace
 from pathlib import Path
 from uuid import UUID
+from datetime import datetime, timezone
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -13,6 +14,8 @@ import pytest
 from ecommerce_intelligence.ingestion.replay import (
     EVENT_TOPIC,
     PRODUCT_TOPIC,
+    DLQ_TOPIC,
+    build_dlq_record,
     build_record,
     iter_source_rows,
     nonnegative_float,
@@ -203,3 +206,77 @@ def test_run_in_dry_run_mode(
     assert "Processed: 2" in output
     assert '"client_id":10' in output
     assert '"client_id":20' in output
+
+def test_builds_dlq_record() -> None:
+    record, topic, key = build_dlq_record(
+        source_file="add_to_cart.parquet",
+        row_number=4,
+        row={
+            "client_id": 10,
+            "timestamp": "invalid-timestamp",
+            "sku": 100,
+        },
+        run_id=RUN_ID,
+        original_topic=EVENT_TOPIC,
+        stage="transformation",
+        error=ValueError("timestamp is invalid"),
+        failed_at=datetime(
+            2026,
+            9,
+            28,
+            8,
+            0,
+            tzinfo=timezone.utc,
+        ),
+    )
+
+    assert topic == DLQ_TOPIC
+    assert key == record["dlq_id"]
+    assert record["original_topic"] == EVENT_TOPIC
+    assert record["error"] == {
+        "stage": "transformation",
+        "type": "ValueError",
+        "message": "timestamp is invalid",
+    }
+    assert record["source"]["row_number"] == 4
+    assert record["raw_record"]["timestamp"] == "invalid-timestamp"
+
+def test_run_routes_transformation_failure_to_dlq(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source_path = tmp_path / "add_to_cart.parquet"
+
+    write_parquet(
+        source_path,
+        [
+            {
+                "client_id": 10,
+                "timestamp": "invalid-timestamp",
+                "sku": 100,
+            }
+        ],
+    )
+
+    args = Namespace(
+        source_file="add_to_cart.parquet",
+        limit=1,
+        data_dir=tmp_path,
+        bootstrap_servers="localhost:9092",
+        batch_size=1,
+        messages_per_second=0.0,
+        run_id=RUN_ID,
+        dry_run=True,
+        validate=True,
+    )
+
+    assert run(args) == 0
+
+    output = capsys.readouterr().out
+
+    assert '"stage":"transformation"' in output
+    assert '"type":"ValueError"' in output
+    assert '"timestamp":"invalid-timestamp"' in output
+    assert "Processed: 1" in output
+    assert "Dead-lettered: 1" in output
+    assert "Failed: 0" in output

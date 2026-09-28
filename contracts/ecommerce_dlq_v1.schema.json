@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:ecommerce-intelligence:contract:dlq:v1",
+  "title": "Synerise Replay Dead-Letter Record V1",
+  "description": "Records that could not be transformed or validated during historical replay.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "dlq_id",
+    "original_topic",
+    "source",
+    "replay",
+    "error",
+    "raw_record"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "dlq_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "original_topic": {
+      "enum": [
+        "ecommerce.events.v1",
+        "ecommerce.products.v1"
+      ]
+    },
+    "source": {
+      "$ref": "#/$defs/source"
+    },
+    "replay": {
+      "$ref": "#/$defs/replay"
+    },
+    "error": {
+      "$ref": "#/$defs/error"
+    },
+    "raw_record": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dataset",
+        "file",
+        "row_number"
+      ],
+      "properties": {
+        "dataset": {
+          "const": "synerise_recsys_2025"
+        },
+        "file": {
+          "enum": [
+            "add_to_cart.parquet",
+            "page_visit.parquet",
+            "product_buy.parquet",
+            "remove_from_cart.parquet",
+            "search_query.parquet",
+            "product_properties.parquet"
+          ]
+        },
+        "row_number": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "replay": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id",
+        "failed_at"
+      ],
+      "properties": {
+        "run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "failed_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage",
+        "type",
+        "message"
+      ],
+      "properties": {
+        "stage": {
+          "enum": [
+            "transformation",
+            "contract_validation"
+          ]
+        },
+        "type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

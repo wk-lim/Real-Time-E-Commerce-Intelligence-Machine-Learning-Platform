@@ -50,9 +50,12 @@ Machine Learning Model
 Apache Airflow will later orchestrate appropriate batch and ML workflows.
 Docker Compose will provide reproducible local services.
 
-## Current phase
+## Project status
 
-**Phase 1 - Synerise data foundation and historical replay**
+**Phase 1 complete - Synerise data foundation and historical replay**
+
+The next planned milestone is Phase 2: consuming the Kafka topics with
+PySpark Structured Streaming.
 
 Completed objectives:
 
@@ -62,7 +65,9 @@ Completed objectives:
 - [x] Implement deterministic identifiers and automated contract tests
 - [x] Run Apache Kafka 4.3.1 locally in KRaft mode
 - [x] Create event, product-reference, and dead-letter topics
-- [ ] Implement and verify the historical replay producer
+- [x] Implement the validated historical replay producer
+- [x] Route invalid source records to a versioned dead-letter contract
+- [x] Verify event, product, and dead-letter delivery through Kafka
 
 See the [Phase 0 guide](docs/phase-0.md) and
 [Phase 1 guide](docs/phase-1.md) for detailed decisions and verification.
@@ -114,6 +119,40 @@ docker compose up -d kafka kafka-init
 docker compose ps -a
 ```
 
+Install the project and its development dependencies:
+
+```powershell
+python -m pip install --editable ".[dev]"
+```
+
+Preview three records without publishing to Kafka:
+
+```powershell
+ecommerce-replay `
+    --source-file add_to_cart.parquet `
+    --limit 3 `
+    --dry-run
+```
+
+Publish a bounded historical replay:
+
+```powershell
+ecommerce-replay `
+    --source-file add_to_cart.parquet `
+    --limit 10 `
+    --messages-per-second 10
+```
+
+The required `--limit` option protects local environments from accidentally
+publishing all 225 million behavioral records. Product reference records can be
+published by selecting `product_properties.parquet` instead.
+
+The producer reads each Parquet file in physical row order. Behavioral events
+use `client_id` as their Kafka key, so records for the same client are ordered
+within one partition in the order they are produced. Kafka does not provide a
+global order across partitions, and this replay does not claim global
+event-time ordering.
+
 Describe the topics:
 
 ```powershell
@@ -122,6 +161,15 @@ docker compose exec -T kafka `
     --bootstrap-server localhost:9092 `
     --describe
 ```
+
+Run the automated test suite:
+
+```powershell
+python -m pytest
+```
+
+Phase 1 currently contains 44 passing tests covering contracts,
+transformations, replay behavior, and dead-letter routing.
 
 Stop the local services while preserving Kafka data:
 
