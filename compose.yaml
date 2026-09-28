@@ -13,6 +13,26 @@ services:
         print("Phase 0 container is ready");
         print(f"Python {platform.python_version()}")
 
+  spark:
+    image: spark:${SPARK_VERSION:-4.2.0}-java21-python3
+    hostname: spark
+    init: true
+    depends_on:
+      kafka:
+        condition: service_healthy
+    working_dir: /opt/project
+    environment:
+      PYTHONPATH: /opt/project/src
+    ports:
+      - "${SPARK_UI_PORT:-4040}:4040"
+    volumes:
+      - .:/opt/project
+      - spark-ivy:/tmp/spark-ivy
+    command:
+      - /bin/bash
+      - -lc
+      - sleep infinity
+
   kafka:
     image: apache/kafka:${KAFKA_VERSION:-4.3.1}
     hostname: kafka
@@ -86,3 +106,4 @@ services:
 
 volumes:
   kafka-data:
+  spark-ivy:
