@@ -122,11 +122,6 @@ def build_event(
         payload = {
             "sku": require_nonnegative_integer(row, "sku"),
         }
-
-    if event_type in SKU_EVENTS:
-        payload = {
-            "sku": require_nonnegative_integer(row, "sku"),
-        }
     elif event_type == "page_visit":
         payload = {
             "url_id": require_nonnegative_integer(row, "url"),

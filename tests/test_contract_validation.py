@@ -8,12 +8,14 @@ from jsonschema.exceptions import ValidationError
 from ecommerce_intelligence.contract_validation import (
     validate_event,
     validate_product,
+    validate_dlq,
 )
 
 
 EVENT_ID = "0b4ce971-dbc8-5c4b-a9c7-f58d29ac37fc"
 RUN_ID = "ae7330fd-d17f-4e61-9c50-d74ab71d0a56"
 PRODUCT_RECORD_ID = "bd511224-aed8-54b3-a4b7-5ea75a72c46e"
+DLQ_ID = "eea4cd4d-2074-5d34-ada0-c31b56d5ed80"
 
 
 def make_event(
@@ -37,6 +39,32 @@ def make_event(
         "replay": {
             "run_id": RUN_ID,
             "published_at": "2026-09-24T08:00:00Z",
+        },
+    }
+
+def make_dlq() -> dict[str, Any]:
+    return {
+        "schema_version": "1.0.0",
+        "dlq_id": DLQ_ID,
+        "original_topic": "ecommerce.events.v1",
+        "source": {
+            "dataset": "synerise_recsys_2025",
+            "file": "add_to_cart.parquet",
+            "row_number": 0,
+        },
+        "replay": {
+            "run_id": RUN_ID,
+            "failed_at": "2026-09-28T08:00:00Z",
+        },
+        "error": {
+            "stage": "transformation",
+            "type": "ValueError",
+            "message": "sku must be non-negative",
+        },
+        "raw_record": {
+            "client_id": 18080713,
+            "timestamp": "2022-08-06 15:17:25",
+            "sku": -1,
         },
     }
 
@@ -178,3 +206,27 @@ def test_product_rejects_unknown_property() -> None:
 
     with pytest.raises(ValidationError):
         validate_product(record)
+
+def test_valid_dlq_record() -> None:
+    validate_dlq(make_dlq())
+
+def test_dlq_rejects_unknown_failure_stage() -> None:
+    record = make_dlq()
+    record["error"]["stage"] = "unknown"
+
+    with pytest.raises(ValidationError):
+        validate_dlq(record)
+
+def test_dlq_rejects_unknown_original_topic() -> None:
+    record = make_dlq()
+    record["original_topic"] = "unknown.topic"
+
+    with pytest.raises(ValidationError):
+        validate_dlq(record)
+
+def test_dlq_requires_raw_record() -> None:
+    record = make_dlq()
+    del record["raw_record"]
+
+    with pytest.raises(ValidationError):
+        validate_dlq(record)

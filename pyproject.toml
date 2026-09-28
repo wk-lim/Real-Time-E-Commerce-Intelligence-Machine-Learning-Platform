@@ -5,9 +5,13 @@ description = "A real-time e-commerce data and machine-learning platform."
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = [
+    "confluent-kafka==2.15.*",
+    "jsonschema[format]==4.26.*",
     "pyarrow==25.0.*",
-    "jsonschema[format]==4.26.*"
 ]
+
+[project.scripts]
+ecommerce-replay = "ecommerce_intelligence.ingestion.replay:main"
 
 [project.optional-dependencies]
 dev = [

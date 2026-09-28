@@ -12,6 +12,7 @@ CONTRACT_DIRECTORY = Path(__file__).resolve().parents[2] / "contracts"
 
 EVENT_CONTRACT = "ecommerce_event_v1.schema.json"
 PRODUCT_CONTRACT = "product_v1.schema.json"
+DLQ_CONTRACT = "ecommerce_dlq_v1.schema.json"
 
 
 @lru_cache(maxsize=None)
@@ -35,3 +36,6 @@ def validate_event(record: dict[str, Any]) -> None:
 
 def validate_product(record: dict[str, Any]) -> None:
     load_validator(PRODUCT_CONTRACT).validate(record)
+
+def validate_dlq(record: dict[str, Any]) -> None:
+    load_validator(DLQ_CONTRACT).validate(record)
