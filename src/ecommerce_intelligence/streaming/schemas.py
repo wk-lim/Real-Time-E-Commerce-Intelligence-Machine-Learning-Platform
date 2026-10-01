@@ -73,6 +73,13 @@ PRODUCT_SCHEMA = StructType(
     ]
 )
 
+PRODUCT_PARSING_SCHEMA = StructType(
+    [
+        *PRODUCT_SCHEMA.fields,
+        StructField("_corrupt_record", StringType(), True),
+    ]
+)
+
 DLQ_ERROR_SCHEMA = StructType(
     [
         StructField("stage", StringType(), False),
