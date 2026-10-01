@@ -53,6 +53,13 @@ EVENT_SCHEMA = StructType(
     ]
 )
 
+EVENT_PARSING_SCHEMA = StructType(
+    [
+        *EVENT_SCHEMA.fields,
+        StructField("_corrupt_record", StringType(), True),
+    ]
+)
+
 PRODUCT_SCHEMA = StructType(
     [
         StructField("schema_version", StringType(), False),

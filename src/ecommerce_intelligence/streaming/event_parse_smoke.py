@@ -5,7 +5,9 @@ import argparse
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as functions
 
-from ecommerce_intelligence.streaming.schemas import EVENT_SCHEMA
+from ecommerce_intelligence.streaming.event_transform import (
+    transform_event_kafka_records,
+)
 
 
 def positive_integer(value: str) -> int:
@@ -22,8 +24,8 @@ def positive_integer(value: str) -> int:
 def create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Parse a bounded Kafka event snapshot "
-            "with the canonical Spark schema."
+            "Transform and validate a bounded Kafka "
+            "event snapshot."
         )
     )
     parser.add_argument(
@@ -48,7 +50,7 @@ def main() -> None:
 
     spark = (
         SparkSession.builder
-        .appName("ecommerce-event-parse-smoke")
+        .appName("ecommerce-event-transform-smoke")
         .config("spark.sql.session.timeZone", "UTC")
         .config("spark.sql.shuffle.partitions", "2")
         .getOrCreate()
@@ -71,78 +73,82 @@ def main() -> None:
             .load()
         )
 
-        parsed_records = kafka_records.select(
-            functions.col("key")
-            .cast("string")
-            .alias("message_key"),
-            functions.col("value")
-            .cast("string")
-            .alias("raw_json"),
-            functions.col("topic")
-            .alias("kafka_topic"),
-            functions.col("partition")
-            .alias("kafka_partition"),
-            functions.col("offset")
-            .alias("kafka_offset"),
-            functions.col("timestamp")
-            .alias("kafka_timestamp"),
-            functions.from_json(
-                functions.col("value").cast("string"),
-                EVENT_SCHEMA,
-            ).alias("event"),
+        transformed = transform_event_kafka_records(
+            kafka_records
         )
 
-        total_records = parsed_records.count()
-
-        parse_failures = parsed_records.where(
-            functions.col("event.event_id").isNull()
-        ).count()
-
-        key_mismatches = parsed_records.where(
-            functions.col("message_key")
-            != functions.col("event.client_id").cast("string")
-        ).count()
+        total_records = transformed.count()
 
         if total_records == 0:
             raise RuntimeError(
                 f"No records found in topic {args.topic}"
             )
 
-        if parse_failures:
-            raise RuntimeError(
-                f"{parse_failures} records failed schema parsing"
-            )
+        valid_records = transformed.where(
+            functions.col("is_valid")
+        )
+        invalid_records = transformed.where(
+            ~functions.col("is_valid")
+        )
 
-        if key_mismatches:
+        valid_count = valid_records.count()
+        invalid_count = invalid_records.count()
+
+        print("Spark event transformation smoke test")
+        print(f"Topic: {args.topic}")
+        print(f"Total records: {total_records}")
+        print(f"Valid records: {valid_count}")
+        print(f"Invalid records: {invalid_count}")
+
+        if invalid_count:
+            print("Validation failures:")
+
+            for row in (
+                invalid_records
+                .groupBy("validation_error")
+                .count()
+                .orderBy("validation_error")
+                .collect()
+            ):
+                print(row.asDict())
+
             raise RuntimeError(
-                f"{key_mismatches} records have an invalid Kafka key"
+                f"{invalid_count} records failed validation"
             )
 
         sample_records = (
-            parsed_records
-            .orderBy("kafka_partition", "kafka_offset")
+            valid_records
+            .orderBy(
+                "kafka_partition",
+                "kafka_offset",
+            )
             .limit(args.max_records)
             .select(
                 "kafka_partition",
                 "kafka_offset",
                 "message_key",
-                "event.event_id",
-                "event.event_type",
-                "event.event_time",
-                "event.client_id",
-                "event.payload",
+                "event_id",
+                "event_type",
+                "event_time_raw",
+                "event_time_local",
+                "client_id",
+                "sku",
+                "url_id",
+                "query_vector_raw",
+                "source_file",
+                "source_row_number",
+                "replay_run_id",
+                "published_at_utc",
             )
             .collect()
         )
 
-        print("Spark event parsing smoke test passed")
-        print(f"Topic: {args.topic}")
-        print(f"Total records: {total_records}")
-        print(f"Parse failures: {parse_failures}")
-        print(f"Kafka key mismatches: {key_mismatches}")
-
         for row in sample_records:
             print(row.asDict(recursive=True))
+
+        print(
+            "Spark event transformation smoke test passed"
+        )
     finally:
         spark.stop()
 
