@@ -8,6 +8,8 @@ dependencies = [
     "confluent-kafka==2.15.*",
     "jsonschema[format]==4.26.*",
     "pyarrow==25.0.*",
+    "psycopg[binary]==3.3.*",
+    "python-dotenv==1.2.*",
 ]
 
 [project.scripts]
