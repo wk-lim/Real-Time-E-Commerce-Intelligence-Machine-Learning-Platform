@@ -28,8 +28,13 @@ Historical Replay Producer
       v
 Spark Structured Streaming
       |
+      +--> Quarantine Parquet (invalid records)
+      |
       v
-  PostgreSQL
+Bronze Parquet (valid records)
+      |
+      v
+PostgreSQL (planned)
       |
       v
      dbt
@@ -52,10 +57,12 @@ Docker Compose will provide reproducible local services.
 
 ## Project status
 
-**Phase 1 complete - Synerise data foundation and historical replay**
+**Phase 2 verified - Kafka-to-Parquet Structured Streaming**
 
-The next planned milestone is Phase 2: consuming the Kafka topics with
-PySpark Structured Streaming.
+Phase 1 provides the Synerise data, contracts, Kafka topics, and historical
+replay. Phase 2 consumes event and product topics with Spark, validates records,
+and writes bronze and quarantine Parquet with separate checkpoints.
+PostgreSQL loading is the next planned milestone.
 
 Completed objectives:
 
@@ -68,9 +75,13 @@ Completed objectives:
 - [x] Implement the validated historical replay producer
 - [x] Route invalid source records to a versioned dead-letter contract
 - [x] Verify event, product, and dead-letter delivery through Kafka
+- [x] Parse and validate Kafka events and products in Spark
+- [x] Write valid records to bronze and rejected records to quarantine
+- [x] Verify checkpoint recovery and malformed-message quarantine
 
-See the [Phase 0 guide](docs/phase-0.md) and
-[Phase 1 guide](docs/phase-1.md) for detailed decisions and verification.
+See the [Phase 0 guide](docs/phase-0.md),
+[Phase 1 guide](docs/phase-1.md), and
+[Phase 2 guide](docs/phase-2.md) for detailed decisions and verification.
 
 ## Development approach
 
@@ -81,7 +92,7 @@ only when the previous phase works and its role in the architecture is understoo
 
 Prerequisites:
 
-- Python 3.11-3.13
+- Python 3.10-3.13
 - Git
 - Docker Desktop with Docker Compose
 
@@ -168,8 +179,10 @@ Run the automated test suite:
 python -m pytest
 ```
 
-Phase 1 currently contains 44 passing tests covering contracts,
-transformations, replay behavior, and dead-letter routing.
+The host test suite includes 44 Phase 1 tests covering contracts,
+transformations, replay behavior, and dead-letter routing. Phase 2 Spark
+parsing, validation, and streaming checks are run in the Spark container;
+see the [Phase 2 guide](docs/phase-2.md).
 
 Stop the local services while preserving Kafka data:
 

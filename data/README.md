@@ -17,7 +17,10 @@ The smaller 1.3 GB competition-preprocessed version is not the primary source fo
 
 The dataset contains anonymized, real-world interactions recorded by an online retailer over six months.
 
-The project replays these historical events through Kafka according to event timestamps. This is a reproducible historical streaming workload, not a true live production data feed.
+The project replays historical records through Kafka in physical Parquet row
+order. Events retain their original timestamps, but publication is not globally
+ordered by event time. This is a reproducible historical streaming workload,
+not a live production feed.
 
 Although released for the 2025 challenge, the verified event-time window is 2022-06-23 through 2022-12-08.
 
