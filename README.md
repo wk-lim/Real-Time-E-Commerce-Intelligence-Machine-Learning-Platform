@@ -34,7 +34,7 @@ Spark Structured Streaming
 Bronze Parquet (valid records)
       |
       v
-PostgreSQL (planned)
+PostgreSQL landing (bounded sample)
       |
       v
      dbt
@@ -57,12 +57,14 @@ Docker Compose will provide reproducible local services.
 
 ## Project status
 
-**Phase 2 verified - Kafka-to-Parquet Structured Streaming**
+**Phase 3 in progress - PostgreSQL landing storage**
 
 Phase 1 provides the Synerise data, contracts, Kafka topics, and historical
 replay. Phase 2 consumes event and product topics with Spark, validates records,
 and writes bronze and quarantine Parquet with separate checkpoints.
-PostgreSQL loading is the next planned milestone.
+Phase 3 adds PostgreSQL landing tables and a bounded, idempotent Python loader
+for valid bronze records. The initial local load contains 5 events and 3
+products; full-dataset and continuous database loading are not yet implemented.
 
 Completed objectives:
 
@@ -78,10 +80,15 @@ Completed objectives:
 - [x] Parse and validate Kafka events and products in Spark
 - [x] Write valid records to bronze and rejected records to quarantine
 - [x] Verify checkpoint recovery and malformed-message quarantine
+- [x] Start PostgreSQL with persistent local storage
+- [x] Define event and product landing tables with stable IDs and source lineage
+- [x] Verify bounded bronze-to-PostgreSQL loads (5 events, 3 products)
 
 See the [Phase 0 guide](docs/phase-0.md),
 [Phase 1 guide](docs/phase-1.md), and
-[Phase 2 guide](docs/phase-2.md) for detailed decisions and verification.
+[Phase 2 guide](docs/phase-2.md) for earlier decisions and verification.
+The [Phase 3 guide](docs/phase-3.md) covers PostgreSQL setup, loading,
+verification, and current limitations.
 
 ## Development approach
 
@@ -179,10 +186,12 @@ Run the automated test suite:
 python -m pytest
 ```
 
-The host test suite includes 44 Phase 1 tests covering contracts,
-transformations, replay behavior, and dead-letter routing. Phase 2 Spark
-parsing, validation, and streaming checks are run in the Spark container;
-see the [Phase 2 guide](docs/phase-2.md).
+The host test suite currently has 49 passing tests covering contracts,
+transformations, replay behavior, dead-letter routing, and bounded PostgreSQL
+loader behavior. Phase 2 Spark parsing, validation, and streaming checks run
+in the Spark container; see the [Phase 2 guide](docs/phase-2.md). The database
+load was verified separately with the commands in the
+[Phase 3 guide](docs/phase-3.md).
 
 Stop the local services while preserving Kafka data:
 
