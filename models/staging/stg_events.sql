@@ -1,0 +1,23 @@
+select
+    event_id,
+    schema_version,
+    message_key,
+    kafka_topic,
+    kafka_partition,
+    kafka_offset,
+    event_type,
+    event_time_raw,
+    event_time_local,
+    event_time_timezone,
+    client_id,
+    sku,
+    url_id,
+    query_vector_raw,
+    source_dataset,
+    source_file,
+    source_row_number,
+    replay_run_id,
+    published_at_utc,
+    processed_at_utc,
+    loaded_at_utc
+from {{ source('landing', 'events') }}
