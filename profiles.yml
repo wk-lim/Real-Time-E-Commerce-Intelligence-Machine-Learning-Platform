@@ -1,0 +1,12 @@
+ecommerce_intelligence:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: "{{ env_var('POSTGRES_HOST', '127.0.0.1') }}"
+      port: "{{ env_var('POSTGRES_HOST_PORT', '5432') | int }}"
+      user: "{{ env_var('POSTGRES_USER', 'ecommerce_admin') }}"
+      password: "{{ env_var('POSTGRES_PASSWORD') }}"
+      dbname: "{{ env_var('POSTGRES_DB', 'ecommerce_intelligence') }}"
+      schema: analytics
+      threads: 2

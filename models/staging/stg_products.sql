@@ -1,0 +1,19 @@
+select
+    record_id,
+    schema_version,
+    message_key,
+    kafka_topic,
+    kafka_partition,
+    kafka_offset,
+    sku,
+    category_id,
+    price_bucket,
+    name_vector_raw,
+    source_dataset,
+    source_file,
+    source_row_number,
+    replay_run_id,
+    published_at_utc,
+    processed_at_utc,
+    loaded_at_utc
+from {{ source('landing', 'products') }}

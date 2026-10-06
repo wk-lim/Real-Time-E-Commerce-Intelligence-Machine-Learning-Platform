@@ -1,0 +1,32 @@
+version: 2
+
+sources:
+  - name: landing
+    schema: landing
+    description: PostgreSQL landing tables loaded from validated bronze files.
+    tables:
+      - name: events
+        columns:
+          - name: event_id
+            data_tests: [not_null, unique]
+          - name: client_id
+            data_tests: [not_null]
+      - name: products
+        columns:
+          - name: record_id
+            data_tests: [not_null, unique]
+
+models:
+  - name: stg_events
+    description: Validated landing events with event and replay timestamps kept distinct.
+    columns:
+      - name: event_id
+        data_tests: [not_null, unique]
+
+  - name: stg_products
+    description: Anonymized product attributes and their source lineage.
+    columns:
+      - name: record_id
+        data_tests: [not_null, unique]
+      - name: sku
+        data_tests: [not_null]

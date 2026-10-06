@@ -57,7 +57,7 @@ Docker Compose will provide reproducible local services.
 
 ## Project status
 
-**Phase 3 in progress - PostgreSQL landing storage**
+**Phase 4 in progress - dbt analytics over bounded PostgreSQL data**
 
 Phase 1 provides the Synerise data, contracts, Kafka topics, and historical
 replay. Phase 2 consumes event and product topics with Spark, validates records,
@@ -66,6 +66,9 @@ Phase 3 adds PostgreSQL landing tables, a bounded sample loader, and a
 file-level resumable loader for valid bronze records. The local landing
 tables contain 5 events and 3 products; full-dataset and continuous
 database loading are not yet implemented.
+Phase 4 adds dbt source definitions, event and product staging views, and
+a daily event-activity mart. It is verified on that small landing sample,
+not on the full Synerise dataset.
 
 Completed objectives:
 
@@ -85,12 +88,15 @@ Completed objectives:
 - [x] Define event and product landing tables with stable IDs and source lineage
 - [x] Verify bounded bronze-to-PostgreSQL loads (5 events, 3 products)
 - [x] Verify file-level resume, duplicate skipping, and transaction rollback
+- [x] Build dbt staging views and a daily event-activity mart
+- [x] Verify dbt source, model, reconciliation, and grain tests
 
 See the [Phase 0 guide](docs/phase-0.md),
 [Phase 1 guide](docs/phase-1.md), and
 [Phase 2 guide](docs/phase-2.md) for earlier decisions and verification.
-The [Phase 3 guide](docs/phase-3.md) covers PostgreSQL setup, loading,
-verification, and current limitations.
+The [Phase 3 guide](docs/phase-3.md) covers PostgreSQL setup and loading.
+The [Phase 4 guide](docs/phase-4.md) covers dbt models, verification, and
+analytics limitations.
 
 ## Development approach
 
@@ -145,6 +151,12 @@ Install the project and its development dependencies:
 python -m pip install --editable ".[dev]"
 ```
 
+For Phase 4 dbt work, install the optional analytics dependencies too:
+
+```powershell
+python -m pip install --editable ".[dev,analytics]"
+```
+
 Preview three records without publishing to Kafka:
 
 ```powershell
@@ -193,7 +205,8 @@ PostgreSQL-dependent integration test. The integration test passed when
 enabled locally and verified rollback, retry, and resume behavior. Phase 2
 Spark parsing, validation, and streaming checks run in the Spark container;
 see the [Phase 2 guide](docs/phase-2.md). PostgreSQL setup and verification
-commands are in the [Phase 3 guide](docs/phase-3.md).
+commands are in the [Phase 3 guide](docs/phase-3.md). The dbt connection,
+build, and test commands are in the [Phase 4 guide](docs/phase-4.md).
 
 Stop the local services while preserving Kafka data:
 

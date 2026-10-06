@@ -37,3 +37,9 @@ data/processed/*
 
 data/checkpoints/*
 !data/checkpoints/.gitkeep
+
+# dbt-generated files
+.user.yml
+target/
+dbt_packages/
+logs/

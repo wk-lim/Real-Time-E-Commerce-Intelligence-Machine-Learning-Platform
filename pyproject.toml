@@ -19,6 +19,10 @@ ecommerce-replay = "ecommerce_intelligence.ingestion.replay:main"
 dev = [
     "pytest==9.1.*",
 ]
+analytics = [
+    "dbt-core==1.11.*",
+    "dbt-postgres==1.11.*",
+]
 
 [build-system]
 requires = ["setuptools>=77"]
