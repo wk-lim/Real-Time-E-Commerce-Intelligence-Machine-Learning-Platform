@@ -2,11 +2,13 @@
 
 ## Status
 
-The initial dbt slice was verified locally on 2026-10-06. The PostgreSQL
-landing tables contained 5 events and 3 products at verification time. The
-full dbt build created 3 views and passed 15 data tests. This demonstrates
-source-to-mart lineage and data-quality checks, not meaningful business trends
-or full-dataset analytics.
+The initial dbt slice was verified locally on 2026-10-06 with 5 landing
+events and 3 products. On 2026-10-07, a coherent five-minute historical
+window of 6,588 behavioral events was replayed through Kafka, Spark, and
+PostgreSQL and verified in the dbt mart. The full dbt build created 3 views
+and passed 15 data tests. See the [coherent sample guide](coherent-sample.md)
+for the window, source counts, run IDs, and interpretation limits. This is
+bounded pipeline validation, not full-dataset analytics or a business trend.
 
 ## Model flow and grain
 
@@ -30,7 +32,9 @@ verified timezone: `event_date_source` is not a UTC date. Replay publication
 and processing timestamps remain separate from the historical event time.
 
 No event-to-product join or conversion metric is modeled yet. `sku` is not
-unique in `landing.products`, and the current event sample has no purchases.
+unique in `landing.products`. The window contains `product_buy` interactions,
+but no order or session IDs; a five-minute observation period also censors
+earlier and later customer activity.
 
 ## Local setup and build
 
@@ -72,14 +76,19 @@ singular assertions:
   equal the staged event row count.
 - `assert_daily_event_grain` rejects duplicate date/event-type groups.
 
-The default Python suite reported 58 passed and one skipped optional
-PostgreSQL integration test. That integration test is described in the
-[Phase 3 guide](phase-3.md).
+The initial default Python suite reported 58 passed and one skipped optional
+PostgreSQL integration test. After the window-replay work, the suite reported
+60 passed and one skipped integration test. That integration test is described
+in the [Phase 3 guide](phase-3.md).
 
-At verification time, the staging views matched their landing tables (5
-events and 3 products), and the mart counts summed to 5. The event sample
-contained 3 `add_to_cart` records and 2 `page_visit` records. Check current
-counts after any additional loads with:
+At the initial verification point, the staging views matched their landing
+tables (5 events and 3 products), and the mart counts summed to 5. Following
+the bounded historical window load, the mart reported 195 cart additions,
+5,826 page visits, 118 purchase interactions, 76 cart removals, and 373
+searches for source date `2022-09-01`. Those counts summed to 6,588 and
+matched the five replay runs. This daily mart covers the whole source date;
+future September 1 loads may change its counts. Check current totals after
+additional loads with:
 
 ```powershell
 docker compose exec -T postgres `
@@ -97,16 +106,15 @@ data and keep model definitions synchronized.
 
 ## Current limitations and next work
 
-- Five events and three products are a pipeline-verification sample, not a
-  representative basis for trend, revenue, or conversion claims.
+- The 6,588-event window is a bounded pipeline-verification sample, not a
+  representative basis for trends, revenue, or conversion claims. The
+  separately loaded product reference sample contains only three records.
 - `price_bucket` is anonymized and cannot be used as a currency amount.
 - The source event timezone is unknown. Do not mix source event dates with
   UTC replay or processing dates without an explicit policy.
-- Replaying an equal fixed number of rows from each event-type file would
-  distort the natural event mix and may select unrelated customers and time
-  periods. A future bounded analytical sample should preserve a coherent
-  cohort or time window and the observed event-type proportions before
-  conversion metrics are introduced.
+- The five-minute source-time window preserves the observed event-type mix,
+  but its short observation period, missing session and order IDs, and lack
+  of global replay ordering still preclude a conversion claim.
 - The local PostgreSQL loader and dbt models have not been exercised on all
   225 million behavioral events; continuous loading and orchestration remain
   future work.

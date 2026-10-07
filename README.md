@@ -57,18 +57,20 @@ Docker Compose will provide reproducible local services.
 
 ## Project status
 
-**Phase 4 in progress - dbt analytics over bounded PostgreSQL data**
+**Phase 4 verified on a bounded historical replay; broader analytics remain**
 
 Phase 1 provides the Synerise data, contracts, Kafka topics, and historical
 replay. Phase 2 consumes event and product topics with Spark, validates records,
 and writes bronze and quarantine Parquet with separate checkpoints.
 Phase 3 adds PostgreSQL landing tables, a bounded sample loader, and a
-file-level resumable loader for valid bronze records. The local landing
-tables contain 5 events and 3 products; full-dataset and continuous
-database loading are not yet implemented.
+file-level resumable loader for valid bronze records. A coherent five-minute
+source-time window of 6,588 behavioral events has been verified through
+Kafka, Spark bronze, and PostgreSQL; earlier smoke-test events and three
+product reference records are also present locally. Full-dataset and
+continuous database loading are not yet implemented.
 Phase 4 adds dbt source definitions, event and product staging views, and
-a daily event-activity mart. It is verified on that small landing sample,
-not on the full Synerise dataset.
+a daily event-activity mart. The mart and dbt tests were verified against
+the bounded window, not the full Synerise dataset.
 
 Completed objectives:
 
@@ -90,13 +92,15 @@ Completed objectives:
 - [x] Verify file-level resume, duplicate skipping, and transaction rollback
 - [x] Build dbt staging views and a daily event-activity mart
 - [x] Verify dbt source, model, reconciliation, and grain tests
+- [x] Replay and reconcile a five-minute, five-event-type historical window
 
 See the [Phase 0 guide](docs/phase-0.md),
 [Phase 1 guide](docs/phase-1.md), and
 [Phase 2 guide](docs/phase-2.md) for earlier decisions and verification.
 The [Phase 3 guide](docs/phase-3.md) covers PostgreSQL setup and loading.
 The [Phase 4 guide](docs/phase-4.md) covers dbt models, verification, and
-analytics limitations.
+analytics limitations. The [coherent sample guide](docs/coherent-sample.md)
+records the verified 6,588-event replay and its interpretation limits.
 
 ## Development approach
 
@@ -177,7 +181,10 @@ ecommerce-replay `
 
 The required `--limit` option protects local environments from accidentally
 publishing all 225 million behavioral records. Product reference records can be
-published by selecting `product_properties.parquet` instead.
+published by selecting `product_properties.parquet` instead. For behavioral
+files, `--window-start` and `--window-end` select a half-open source-time
+window; in that mode, `--limit` caps matching records but the producer may
+scan much more of the Parquet file. Preview with `--dry-run` before publishing.
 
 The producer reads each Parquet file in physical row order. Behavioral events
 use `client_id` as their Kafka key, so records for the same client are ordered
@@ -200,7 +207,7 @@ Run the automated test suite:
 python -m pytest
 ```
 
-The default host suite currently has 58 passing tests and one skipped
+The default host suite currently has 60 passing tests and one skipped
 PostgreSQL-dependent integration test. The integration test passed when
 enabled locally and verified rollback, retry, and resume behavior. Phase 2
 Spark parsing, validation, and streaming checks run in the Spark container;
