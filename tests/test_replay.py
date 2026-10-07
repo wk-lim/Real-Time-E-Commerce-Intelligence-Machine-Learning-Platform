@@ -23,6 +23,8 @@ from ecommerce_intelligence.ingestion.replay import (
     run,
     serialize_record,
     validate_record,
+    iter_source_rows_in_window,
+    create_parser,
 )
 
 
@@ -280,3 +282,72 @@ def test_run_routes_transformation_failure_to_dlq(
     assert "Processed: 1" in output
     assert "Dead-lettered: 1" in output
     assert "Failed: 0" in output
+
+
+def test_window_selection_preserves_source_row_numbers(tmp_path: Path) -> None:
+    source_path = tmp_path / "add_to_cart.parquet"
+    write_parquet(
+        source_path,
+        [
+            {"client_id": 10, "timestamp": "2022-09-01 11:59:59", "sku": 1},
+            {"client_id": 20, "timestamp": "2022-09-01 12:00:00", "sku": 2},
+            {"client_id": 30, "timestamp": "2022-09-01 12:02:00", "sku": 3},
+            {"client_id": 40, "timestamp": "2022-09-01 12:05:00", "sku": 4},
+            {"client_id": 50, "timestamp": "2022-09-01 12:04:59", "sku": 5},
+        ],
+    )
+
+    kwargs = {
+        "batch_size": 2,
+        "start_time": "2022-09-01 12:00:00",
+        "end_time": "2022-09-01 12:05:00",
+    }
+
+    all_matches = list(
+        iter_source_rows_in_window(
+            source_path, max_selected=10, **kwargs
+        )
+    )
+    assert [number for number, _ in all_matches] == [1, 2, 4]
+
+    limited = list(
+        iter_source_rows_in_window(
+            source_path, max_selected=2, **kwargs
+        )
+    )
+    assert [number for number, _ in limited] == [1, 2]
+
+def test_window_cli_dry_run_preserves_source_rows(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    write_parquet(
+        tmp_path / "add_to_cart.parquet",
+        [
+            {"client_id": 10, "timestamp": "2022-09-01 11:59:59", "sku": 1},
+            {"client_id": 20, "timestamp": "2022-09-01 12:00:00", "sku": 2},
+            {"client_id": 30, "timestamp": "2022-09-01 12:05:00", "sku": 3},
+            {"client_id": 40, "timestamp": "2022-09-01 12:04:59", "sku": 4},
+        ],
+    )
+
+    args = create_parser().parse_args([
+        "--source-file", "add_to_cart.parquet",
+        "--data-dir", str(tmp_path),
+        "--limit", "10",
+        "--window-start", "2022-09-01 12:00:00",
+        "--window-end", "2022-09-01 12:05:00",
+        "--messages-per-second", "0",
+        "--dry-run",
+    ])
+
+    assert run(args) == 0
+
+    output = capsys.readouterr().out
+    records = [
+        json.loads(line)
+        for line in output.splitlines()
+        if line.startswith("{")
+    ]
+    assert [record["source"]["row_number"] for record in records] == [1, 3]
+    assert "Processed: 2" in output

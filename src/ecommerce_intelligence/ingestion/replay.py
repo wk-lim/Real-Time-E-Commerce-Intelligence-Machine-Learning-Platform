@@ -14,6 +14,8 @@ from uuid import UUID, uuid4, uuid5
 
 import pyarrow.parquet as pq
 from confluent_kafka import KafkaError, Message, Producer
+import pyarrow as pa
+import pyarrow.compute as pc
 
 from ecommerce_intelligence.contract_validation import (
     validate_dlq,
@@ -315,6 +317,14 @@ def create_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--window-start",
+        help="Inclusive source timestamp (YYYY-MM-DD HH:MM:SS).",
+    )
+    parser.add_argument(
+        "--window-end",
+        help="Exclusive source timestamp (YYYY-MM-DD HH:MM:SS).",
+    )
+    parser.add_argument(
         "--data-dir",
         type=Path,
         default=Path("data/raw/synerise"),
@@ -368,6 +378,53 @@ def create_parser() -> argparse.ArgumentParser:
 
     return parser
 
+def iter_source_rows_in_window(
+        source_path: Path,
+        *,
+        batch_size: int,
+        max_selected: int,
+        start_time: str,
+        end_time: str,
+) -> Iterator[tuple[int, dict[str, Any]]]:
+    if batch_size <= 0 or max_selected <= 0:
+        raise ValueError("batch_size and max_selected must be positive")
+
+    time_format = "%Y-%m-%d %H:%M:%S"
+    start = datetime.strptime(start_time, time_format)
+    end = datetime.strptime(end_time, time_format)
+
+    if (
+        start.strftime(time_format) != start_time
+        or end.strftime(time_format) != end_time
+        or start >= end
+    ):
+        raise ValueError("Expected an increasing canonical timestamp window")
+
+    lower = pa.scalar(start_time, type=pa.string())
+    upper = pa.scalar(end_time, type=pa.string())
+    parquet_file = pq.ParquetFile(source_path)
+    source_row_number = 0
+    selected_count = 0
+
+    for batch in parquet_file.iter_batches(batch_size=batch_size):
+        timestamps = batch.column("timestamp")
+        in_window = pc.and_(
+            pc.greater_equal(timestamps, lower),
+            pc.less(timestamps, upper),
+        )
+        indices = pc.indices_nonzero(in_window)
+        selected_rows = batch.take(indices).to_pylist()
+
+        for batch_index, row in zip(indices.to_pylist(), selected_rows):
+            yield source_row_number + batch_index, row
+            selected_count += 1
+
+            if selected_count >= max_selected:
+                return
+
+        source_row_number += batch.num_rows
+
+
 
 def run(args: argparse.Namespace) -> int:
     source_path = args.data_dir / args.source_file
@@ -376,6 +433,15 @@ def run(args: argparse.Namespace) -> int:
         raise FileNotFoundError(
             f"Source file does not exist: {source_path}"
         )
+
+    window_start = getattr(args, "window_start", None)
+    window_end = getattr(args, "window_end", None)
+
+    if (window_start is None) != (window_end is None):
+        raise ValueError("--window-start and --window-end must be provided together")
+
+    if window_start is not None and args.source_file == PRODUCT_SOURCE_FILE:
+        raise ValueError("Time windows are only supported for behavioral events")
 
     run_id = args.run_id or uuid4()
     tracker = DeliveryTracker()
@@ -407,11 +473,24 @@ def run(args: argparse.Namespace) -> int:
         "(not global event-time order)"
     )
 
-    for row_number, row in iter_source_rows(
-        source_path,
-        batch_size=args.batch_size,
-        limit=args.limit,
-    ):
+    if window_start is None:
+        source_rows = iter_source_rows(
+            source_path,
+            batch_size=args.batch_size,
+            limit=args.limit,
+        )
+    else:
+        print(f"Window: [{window_start}, {window_end}) (source timezone unknown)")
+        print("Limit applies to matching records; the source scan may be larger")
+        source_rows = iter_source_rows_in_window(
+            source_path,
+            batch_size=args.batch_size,
+            max_selected=args.limit,
+            start_time=window_start,
+            end_time=window_end,
+        )
+
+    for row_number, row in source_rows:
         try:
             record, topic, key = build_record(
                 source_file=args.source_file,
