@@ -160,8 +160,9 @@ Remove-Item Env:RUN_POSTGRES_INTEGRATION
 - Product `price_bucket` is anonymized and is not a monetary price.
 - The bounded loader scans Parquet rows in scan order; the incremental
   loader scans file paths in sorted order. Neither guarantees event-time order.
-- The file ledger tracks completed files, but there is no scheduler,
-  continuous database sink, or reconciliation of deleted source files.
+- The file ledger tracks completed files but does not provide a continuous
+  database sink or reconcile deleted source files. Phase 5 adds a manual,
+  bounded Airflow workflow; it does not make ingestion continuous.
 - Per-row inserts, repeated file hashing, and the 10,000-row-per-file cap
   make this a correctness checkpoint, not a design for loading all
   225 million events.

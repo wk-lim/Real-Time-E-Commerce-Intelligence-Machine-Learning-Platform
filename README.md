@@ -52,12 +52,13 @@ Machine Learning Model
   Streamlit Dashboard
 ```
 
-Apache Airflow will later orchestrate appropriate batch and ML workflows.
-Docker Compose will provide reproducible local services.
+Apache Airflow now orchestrates a manual, bounded bronze-to-PostgreSQL and dbt
+workflow. Historical replay and Spark streaming are not yet Airflow-managed.
+Docker Compose provides reproducible local services.
 
 ## Project status
 
-**Phase 4 verified on a bounded historical replay; broader analytics remain**
+**Phase 5 verified for manual, bounded Airflow orchestration; broader analytics remain**
 
 Phase 1 provides the Synerise data, contracts, Kafka topics, and historical
 replay. Phase 2 consumes event and product topics with Spark, validates records,
@@ -71,6 +72,9 @@ continuous database loading are not yet implemented.
 Phase 4 adds dbt source definitions, event and product staging views, and
 a daily event-activity mart. The mart and dbt tests were verified against
 the bounded window, not the full Synerise dataset.
+Phase 5 adds a local Airflow 3 deployment, a successful manual smoke DAG,
+and a three-task DAG that runs bounded incremental bronze loaders followed
+by `dbt build`. The replay producer and Spark streams remain manual.
 
 Completed objectives:
 
@@ -93,6 +97,7 @@ Completed objectives:
 - [x] Build dbt staging views and a daily event-activity mart
 - [x] Verify dbt source, model, reconciliation, and grain tests
 - [x] Replay and reconcile a five-minute, five-event-type historical window
+- [x] Run a manual Airflow smoke DAG and bounded bronze-to-dbt workflow
 
 See the [Phase 0 guide](docs/phase-0.md),
 [Phase 1 guide](docs/phase-1.md), and
@@ -101,6 +106,8 @@ The [Phase 3 guide](docs/phase-3.md) covers PostgreSQL setup and loading.
 The [Phase 4 guide](docs/phase-4.md) covers dbt models, verification, and
 analytics limitations. The [coherent sample guide](docs/coherent-sample.md)
 records the verified 6,588-event replay and its interpretation limits.
+The [Phase 5 guide](docs/phase-5.md) covers Airflow setup, manual execution,
+verification, and current orchestration limits.
 
 ## Development approach
 
@@ -214,8 +221,10 @@ Spark parsing, validation, and streaming checks run in the Spark container;
 see the [Phase 2 guide](docs/phase-2.md). PostgreSQL setup and verification
 commands are in the [Phase 3 guide](docs/phase-3.md). The dbt connection,
 build, and test commands are in the [Phase 4 guide](docs/phase-4.md).
+The manual Airflow workflow and its verification are in the
+[Phase 5 guide](docs/phase-5.md).
 
-Stop the local services while preserving Kafka data:
+Stop the local services while preserving Kafka and PostgreSQL named-volume data:
 
 ```powershell
 docker compose down

@@ -100,9 +100,10 @@ docker compose exec -T postgres `
   -c "SELECT (SELECT count(*) FROM analytics.stg_events) AS staged_events, (SELECT coalesce(sum(event_count), 0) FROM analytics.fct_daily_event_activity) AS mart_events;"
 ```
 
-These views reflect landing-table changes when queried, but the dbt tests do
-not run automatically after a load. Run `dbt build` again to validate the new
-data and keep model definitions synchronized.
+These views reflect landing-table changes when queried. If a loader is run
+directly, dbt tests do not run automatically; run `dbt build` afterward to
+validate the new data and keep model definitions synchronized. The manual
+Phase 5 Airflow DAG runs `dbt build` after its bounded loads.
 
 ## Current limitations and next work
 
@@ -116,5 +117,6 @@ data and keep model definitions synchronized.
   but its short observation period, missing session and order IDs, and lack
   of global replay ordering still preclude a conversion claim.
 - The local PostgreSQL loader and dbt models have not been exercised on all
-  225 million behavioral events; continuous loading and orchestration remain
+  225 million behavioral events. Phase 5 adds a manual, bounded Airflow
+  loader-to-dbt workflow; continuous loading and broader orchestration remain
   future work.
