@@ -1,0 +1,12 @@
+FROM apache/airflow:3.3.2
+
+WORKDIR /opt/project
+
+COPY --chown=airflow:root pyproject.toml README.md ./
+COPY --chown=airflow:root src ./src
+COPY --chown=airflow:root contracts ./contracts
+COPY --chown=airflow:root dbt_project.yml profiles.yml ./
+COPY --chown=airflow:root models ./models
+COPY --chown=airflow:root dbt_tests ./dbt_tests
+
+RUN pip install --no-cache-dir "apache-airflow==${AIRFLOW_VERSION}" -e ".[analytics]"
