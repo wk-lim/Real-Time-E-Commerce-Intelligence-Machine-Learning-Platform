@@ -13,7 +13,11 @@ from sklearn.metrics import (
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
-from ecommerce_intelligence.ml.train_purchase_baseline import load_day
+from ecommerce_intelligence.ml.train_purchase_baseline import (
+    FEATURE_COLUMNS,
+    RECENCY_COLUMNS,
+    load_day,
+)
 
 
 BUCKET_NAMES = ["under 24h", "24-72h", "72-168h"]
@@ -42,6 +46,19 @@ def main() -> None:
         "--validation-as-of",
         type=date.fromisoformat,
         required=True,
+    )
+    parser.add_argument(
+        "--tracking-uri",
+        help="MLflow tracking URI; enables experiment and model logging",
+    )
+    parser.add_argument(
+        "--experiment-name",
+        default="ecommerce-purchase-timing",
+    )
+    parser.add_argument(
+        "--evaluation-role",
+        choices=("validation", "holdout"),
+        default="validation",
     )
     args = parser.parse_args()
 
@@ -97,31 +114,55 @@ def main() -> None:
     prior_probabilities = np.tile(prior, (len(valid_buckets), 1))
     train_prior_probabilities = np.tile(prior, (len(train_buckets), 1))
     train_probabilities = model.predict_proba(x_train)
+    metrics = {
+        "training_prior_log_loss": float(
+            log_loss(train_buckets, train_prior_probabilities, labels=[0, 1, 2])
+        ),
+        "training_model_log_loss": float(
+            log_loss(train_buckets, train_probabilities, labels=[0, 1, 2])
+        ),
+        "majority_bucket_accuracy": float(
+            accuracy_score(
+                valid_buckets,
+                np.full_like(valid_buckets, majority_bucket),
+            )
+        ),
+        "model_accuracy": float(accuracy_score(valid_buckets, predictions)),
+        "model_macro_f1": float(
+            f1_score(valid_buckets, predictions, average="macro")
+        ),
+        "prior_log_loss": float(
+            log_loss(valid_buckets, prior_probabilities, labels=[0, 1, 2])
+        ),
+        "model_log_loss": float(
+            log_loss(valid_buckets, probabilities, labels=[0, 1, 2])
+        ),
+    }
 
     print(
         "Training prior log loss:",
-        f"{log_loss(train_buckets, train_prior_probabilities, labels=[0, 1, 2]):.4f}",
+        f"{metrics['training_prior_log_loss']:.4f}",
     )
     print(
         "Training model log loss:",
-        f"{log_loss(train_buckets, train_probabilities, labels=[0, 1, 2]):.4f}",
+        f"{metrics['training_model_log_loss']:.4f}",
     )
 
     print("Training timing counts:", train_counts.tolist())
     print("Validation timing counts:", valid_counts.tolist())
     print(
         "Majority-bucket accuracy:",
-        f"{accuracy_score(valid_buckets, np.full_like(valid_buckets, majority_bucket)):.4f}",
+        f"{metrics['majority_bucket_accuracy']:.4f}",
     )
-    print("Model accuracy:", f"{accuracy_score(valid_buckets, predictions):.4f}")
-    print("Model macro F1:", f"{f1_score(valid_buckets, predictions, average='macro'):.4f}")
+    print("Model accuracy:", f"{metrics['model_accuracy']:.4f}")
+    print("Model macro F1:", f"{metrics['model_macro_f1']:.4f}")
     print(
         "Prior-only log loss:",
-        f"{log_loss(valid_buckets, prior_probabilities, labels=[0, 1, 2]):.4f}",
+        f"{metrics['prior_log_loss']:.4f}",
     )
     print(
         "Model log loss:",
-        f"{log_loss(valid_buckets, probabilities, labels=[0, 1, 2]):.4f}",
+        f"{metrics['model_log_loss']:.4f}",
     )
     print(
         classification_report(
@@ -132,6 +173,57 @@ def main() -> None:
             zero_division=0,
         )
     )
+
+    if args.tracking_uri:
+        import mlflow
+        import mlflow.sklearn
+
+        mlflow.set_tracking_uri(args.tracking_uri)
+        mlflow.set_experiment(args.experiment_name)
+        with mlflow.start_run(
+            run_name=f"timing-{args.validation_as_of.isoformat()}"
+        ) as run:
+            mlflow.log_params(
+                {
+                    "model": "StandardScaler+LogisticRegression",
+                    "feature_set": (
+                        "counts+recency" if args.include_recency else "counts"
+                    ),
+                    "feature_columns": ",".join(
+                        FEATURE_COLUMNS
+                        + (RECENCY_COLUMNS if args.include_recency else ())
+                    ),
+                    "train_as_of": ",".join(
+                        day.isoformat() for day in args.train_as_of
+                    ),
+                    "evaluation_as_of": args.validation_as_of.isoformat(),
+                    "training_positive_pairs": len(train_buckets),
+                    "evaluation_positive_pairs": len(valid_buckets),
+                    "training_bucket_counts": ",".join(
+                        str(count) for count in train_counts
+                    ),
+                    "evaluation_bucket_counts": ",".join(
+                        str(count) for count in valid_counts
+                    ),
+                    "bucket_boundaries_hours": "24,72,168",
+                    "C": 0.01,
+                    "max_iter": 2000,
+                }
+            )
+            mlflow.log_metrics(metrics)
+            mlflow.set_tags(
+                {
+                    "evaluation_role": args.evaluation_role,
+                    "conditional_on_purchase": "true",
+                }
+            )
+            model_info = mlflow.sklearn.log_model(
+                sk_model=model,
+                name="purchase_timing_classifier",
+                input_example=np.zeros((1, x_train.shape[1]), dtype=np.float64),
+            )
+        print(f"MLflow run ID: {run.info.run_id}")
+        print(f"MLflow model URI: {model_info.model_uri}")
 
 
 if __name__ == "__main__":

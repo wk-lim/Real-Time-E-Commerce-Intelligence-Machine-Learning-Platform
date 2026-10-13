@@ -26,6 +26,9 @@ analytics = [
 ml = [
     "scikit-learn==1.7.*",
 ]
+tracking = [
+    "mlflow==3.17.*",
+]
 
 [build-system]
 requires = ["setuptools>=77"]
