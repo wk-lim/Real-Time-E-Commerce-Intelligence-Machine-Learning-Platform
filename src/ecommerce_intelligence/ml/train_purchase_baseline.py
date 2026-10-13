@@ -94,11 +94,11 @@ def load_day(
         raise ValueError(f"Missing purchase labels for {day}")
 
     x = np.column_stack(
-    [
-        np.asarray(features[column], dtype=np.float64)
-        for column in feature_columns
-    ]
-)
+        [
+            np.asarray(features[column], dtype=np.float64)
+            for column in feature_columns
+        ]
+    )
     if not np.isfinite(x).all():
         raise ValueError(f"Missing or non-finite feature values for {day}")
 
@@ -145,6 +145,19 @@ def main() -> None:
     )
     parser.add_argument("--labels-dir", type=Path)
     parser.add_argument("--include-recency", action="store_true")
+    parser.add_argument(
+        "--tracking-uri",
+        help="MLflow tracking URI; enables experiment and model logging",
+    )
+    parser.add_argument(
+        "--experiment-name",
+        default="ecommerce-purchase-binary",
+    )
+    parser.add_argument(
+        "--evaluation-role",
+        choices=("validation", "holdout"),
+        default="validation",
+    )
     args = parser.parse_args()
 
     if len(set(args.train_as_of)) != len(args.train_as_of):
@@ -183,15 +196,65 @@ def main() -> None:
     k = min(1000, len(y_valid))
     top_indices = np.argsort(probabilities)[-k:]
     top_hits = int(y_valid[top_indices].sum())
+    metrics = {
+        "random_ranking_ap": float(y_valid.mean()),
+        "average_precision": float(average_precision_score(y_valid, probabilities)),
+        "roc_auc": float(roc_auc_score(y_valid, probabilities)),
+        "brier_score": float(brier_score_loss(y_valid, probabilities)),
+        "precision_at_1000": top_hits / k,
+        "recall_at_1000": top_hits / int(y_valid.sum()),
+    }
 
     print(f"Training: {len(y_train):,} rows, {int(y_train.sum()):,} positives")
     print(f"Validation: {len(y_valid):,} rows, {int(y_valid.sum()):,} positives")
-    print(f"Random-ranking AP baseline: {y_valid.mean():.4f}")
-    print(f"Average precision: {average_precision_score(y_valid, probabilities):.4f}")
-    print(f"ROC AUC: {roc_auc_score(y_valid, probabilities):.4f}")
-    print(f"Brier score: {brier_score_loss(y_valid, probabilities):.4f}")
-    print(f"Precision at top {k:,}: {top_hits / k:.4f}")
-    print(f"Recall at top {k:,}: {top_hits / int(y_valid.sum()):.4f}")
+    print(f"Random-ranking AP baseline: {metrics['random_ranking_ap']:.4f}")
+    print(f"Average precision: {metrics['average_precision']:.4f}")
+    print(f"ROC AUC: {metrics['roc_auc']:.4f}")
+    print(f"Brier score: {metrics['brier_score']:.4f}")
+    print(f"Precision at top {k:,}: {metrics['precision_at_1000']:.4f}")
+    print(f"Recall at top {k:,}: {metrics['recall_at_1000']:.4f}")
+
+    if args.tracking_uri:
+        import mlflow
+        import mlflow.sklearn
+
+        mlflow.set_tracking_uri(args.tracking_uri)
+        mlflow.set_experiment(args.experiment_name)
+        with mlflow.start_run(
+            run_name=f"binary-{args.validation_as_of.isoformat()}"
+        ) as run:
+            mlflow.log_params(
+                {
+                    "model": "StandardScaler+LogisticRegression",
+                    "feature_set": (
+                        "counts+recency" if args.include_recency else "counts"
+                    ),
+                    "feature_columns": ",".join(
+                        FEATURE_COLUMNS
+                        + (RECENCY_COLUMNS if args.include_recency else ())
+                    ),
+                    "train_as_of": ",".join(
+                        day.isoformat() for day in args.train_as_of
+                    ),
+                    "evaluation_as_of": args.validation_as_of.isoformat(),
+                    "train_rows": len(y_train),
+                    "train_positives": int(y_train.sum()),
+                    "evaluation_rows": len(y_valid),
+                    "evaluation_positives": int(y_valid.sum()),
+                    "top_k": k,
+                    "C": 1.0,
+                    "max_iter": 2000,
+                }
+            )
+            mlflow.log_metrics(metrics)
+            mlflow.set_tag("evaluation_role", args.evaluation_role)
+            model_info = mlflow.sklearn.log_model(
+                sk_model=model,
+                name="purchase_classifier",
+                input_example=np.zeros((1, x_train.shape[1]), dtype=np.float64),
+            )
+        print(f"MLflow run ID: {run.info.run_id}")
+        print(f"MLflow model URI: {model_info.model_uri}")
 
 
 if __name__ == "__main__":

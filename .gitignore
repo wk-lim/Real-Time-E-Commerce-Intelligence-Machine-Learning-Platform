@@ -38,6 +38,11 @@ data/processed/*
 data/checkpoints/*
 !data/checkpoints/.gitkeep
 
+# Local MLflow tracking metadata and artifacts
+mlflow.db
+mlruns/
+mlartifacts/
+
 # dbt-generated files
 .user.yml
 target/

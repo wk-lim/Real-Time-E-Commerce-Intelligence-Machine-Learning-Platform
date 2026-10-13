@@ -58,7 +58,7 @@ Docker Compose provides reproducible local services.
 
 ## Project status
 
-**Phase 6 offline feature and ML baselines verified on historical holdout dates**
+**Phase 7 local MLflow tracking and candidate model registry verified**
 
 Phase 1 provides the Synerise data, contracts, Kafka topics, and historical
 replay. Phase 2 consumes event and product topics with Spark, validates records,
@@ -79,7 +79,9 @@ Phase 6 adds offline client-SKU feature snapshots, seven-day same-SKU purchase
 labels, and separate purchase-ranking and conditional timing baselines. These
 use selected full-day raw Parquet windows, not the bounded PostgreSQL sample.
 The selected models were evaluated on a held-out September 21, 2022 date;
-model tracking and serving are not yet implemented.
+model serving is not yet implemented. Phase 7 logs the selected baselines to
+a local SQLite-backed MLflow store, verifies model reloads, and registers
+candidate versions without promoting them to production.
 
 Completed objectives:
 
@@ -105,6 +107,7 @@ Completed objectives:
 - [x] Run a manual Airflow smoke DAG and bounded bronze-to-dbt workflow
 - [x] Build and test offline client-SKU features and seven-day purchase labels
 - [x] Select purchase and timing baselines, then evaluate a temporal holdout
+- [x] Track selected validation runs and reload registered candidate models
 
 See the [Phase 0 guide](docs/phase-0.md),
 [Phase 1 guide](docs/phase-1.md), and
@@ -117,6 +120,8 @@ The [Phase 5 guide](docs/phase-5.md) covers Airflow setup, manual execution,
 verification, and current orchestration limits.
 The [Phase 6 guide](docs/phase-6.md) covers offline features, labels, model
 selection, final holdout metrics, and interpretation limits.
+The [Phase 7 guide](docs/phase-7.md) covers local MLflow tracking, candidate
+model registration, and current management limits.
 
 ## Development approach
 
@@ -183,6 +188,12 @@ For offline Phase 6 modeling, install the optional ML dependencies:
 python -m pip install --editable ".[dev,ml]"
 ```
 
+For Phase 7 local experiment tracking, add the tracking extra:
+
+```powershell
+python -m pip install --editable ".[dev,ml,tracking]"
+```
+
 Preview three records without publishing to Kafka:
 
 ```powershell
@@ -240,6 +251,8 @@ The manual Airflow workflow and its verification are in the
 [Phase 5 guide](docs/phase-5.md).
 Offline feature, label, and ML reproduction commands are in the
 [Phase 6 guide](docs/phase-6.md).
+The local MLflow setup and inspection commands are in the
+[Phase 7 guide](docs/phase-7.md).
 
 Stop the local services while preserving Kafka and PostgreSQL named-volume data:
 
