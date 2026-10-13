@@ -58,7 +58,7 @@ Docker Compose provides reproducible local services.
 
 ## Project status
 
-**Phase 5 verified for manual, bounded Airflow orchestration; broader analytics remain**
+**Phase 6 offline feature and ML baselines verified on historical holdout dates**
 
 Phase 1 provides the Synerise data, contracts, Kafka topics, and historical
 replay. Phase 2 consumes event and product topics with Spark, validates records,
@@ -75,6 +75,11 @@ the bounded window, not the full Synerise dataset.
 Phase 5 adds a local Airflow 3 deployment, a successful manual smoke DAG,
 and a three-task DAG that runs bounded incremental bronze loaders followed
 by `dbt build`. The replay producer and Spark streams remain manual.
+Phase 6 adds offline client-SKU feature snapshots, seven-day same-SKU purchase
+labels, and separate purchase-ranking and conditional timing baselines. These
+use selected full-day raw Parquet windows, not the bounded PostgreSQL sample.
+The selected models were evaluated on a held-out September 21, 2022 date;
+model tracking and serving are not yet implemented.
 
 Completed objectives:
 
@@ -98,6 +103,8 @@ Completed objectives:
 - [x] Verify dbt source, model, reconciliation, and grain tests
 - [x] Replay and reconcile a five-minute, five-event-type historical window
 - [x] Run a manual Airflow smoke DAG and bounded bronze-to-dbt workflow
+- [x] Build and test offline client-SKU features and seven-day purchase labels
+- [x] Select purchase and timing baselines, then evaluate a temporal holdout
 
 See the [Phase 0 guide](docs/phase-0.md),
 [Phase 1 guide](docs/phase-1.md), and
@@ -108,6 +115,8 @@ analytics limitations. The [coherent sample guide](docs/coherent-sample.md)
 records the verified 6,588-event replay and its interpretation limits.
 The [Phase 5 guide](docs/phase-5.md) covers Airflow setup, manual execution,
 verification, and current orchestration limits.
+The [Phase 6 guide](docs/phase-6.md) covers offline features, labels, model
+selection, final holdout metrics, and interpretation limits.
 
 ## Development approach
 
@@ -168,6 +177,12 @@ For Phase 4 dbt work, install the optional analytics dependencies too:
 python -m pip install --editable ".[dev,analytics]"
 ```
 
+For offline Phase 6 modeling, install the optional ML dependencies:
+
+```powershell
+python -m pip install --editable ".[dev,ml]"
+```
+
 Preview three records without publishing to Kafka:
 
 ```powershell
@@ -214,7 +229,7 @@ Run the automated test suite:
 python -m pytest
 ```
 
-The default host suite currently has 60 passing tests and one skipped
+The default host suite currently has 64 passing tests and one skipped
 PostgreSQL-dependent integration test. The integration test passed when
 enabled locally and verified rollback, retry, and resume behavior. Phase 2
 Spark parsing, validation, and streaming checks run in the Spark container;
@@ -223,6 +238,8 @@ commands are in the [Phase 3 guide](docs/phase-3.md). The dbt connection,
 build, and test commands are in the [Phase 4 guide](docs/phase-4.md).
 The manual Airflow workflow and its verification are in the
 [Phase 5 guide](docs/phase-5.md).
+Offline feature, label, and ML reproduction commands are in the
+[Phase 6 guide](docs/phase-6.md).
 
 Stop the local services while preserving Kafka and PostgreSQL named-volume data:
 
