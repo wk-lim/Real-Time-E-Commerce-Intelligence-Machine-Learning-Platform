@@ -58,7 +58,7 @@ Docker Compose provides reproducible local services.
 
 ## Project status
 
-**Phase 7 local MLflow tracking and candidate model registry verified**
+**Phase 8 local FastAPI feature-input scoring verified**
 
 Phase 1 provides the Synerise data, contracts, Kafka topics, and historical
 replay. Phase 2 consumes event and product topics with Spark, validates records,
@@ -78,10 +78,12 @@ by `dbt build`. The replay producer and Spark streams remain manual.
 Phase 6 adds offline client-SKU feature snapshots, seven-day same-SKU purchase
 labels, and separate purchase-ranking and conditional timing baselines. These
 use selected full-day raw Parquet windows, not the bounded PostgreSQL sample.
-The selected models were evaluated on a held-out September 21, 2022 date;
-model serving is not yet implemented. Phase 7 logs the selected baselines to
-a local SQLite-backed MLflow store, verifies model reloads, and registers
-candidate versions without promoting them to production.
+The selected models were evaluated on a held-out September 21, 2022 date.
+Phase 7 logs the selected baselines to a local SQLite-backed MLflow store,
+verifies model reloads, and registers candidate versions without promoting
+them to production. Phase 8 adds a loopback-only FastAPI endpoint that scores
+a supplied, precomputed feature snapshot. It does not retrieve live client
+features or provide a production deployment.
 
 Completed objectives:
 
@@ -108,6 +110,7 @@ Completed objectives:
 - [x] Build and test offline client-SKU features and seven-day purchase labels
 - [x] Select purchase and timing baselines, then evaluate a temporal holdout
 - [x] Track selected validation runs and reload registered candidate models
+- [x] Test local feature-input scoring through FastAPI and registered models
 
 See the [Phase 0 guide](docs/phase-0.md),
 [Phase 1 guide](docs/phase-1.md), and
@@ -122,6 +125,8 @@ The [Phase 6 guide](docs/phase-6.md) covers offline features, labels, model
 selection, final holdout metrics, and interpretation limits.
 The [Phase 7 guide](docs/phase-7.md) covers local MLflow tracking, candidate
 model registration, and current management limits.
+The [Phase 8 guide](docs/phase-8.md) covers local feature-input scoring,
+request semantics, verification, and serving limits.
 
 ## Development approach
 
@@ -194,6 +199,12 @@ For Phase 7 local experiment tracking, add the tracking extra:
 python -m pip install --editable ".[dev,ml,tracking]"
 ```
 
+For Phase 8 local API development and tests, add the serving extra:
+
+```powershell
+python -m pip install --editable ".[dev,ml,tracking,serving]"
+```
+
 Preview three records without publishing to Kafka:
 
 ```powershell
@@ -240,7 +251,7 @@ Run the automated test suite:
 python -m pytest
 ```
 
-The default host suite currently has 64 passing tests and one skipped
+The default host suite currently has 81 passing tests and one skipped
 PostgreSQL-dependent integration test. The integration test passed when
 enabled locally and verified rollback, retry, and resume behavior. Phase 2
 Spark parsing, validation, and streaming checks run in the Spark container;
@@ -253,6 +264,8 @@ Offline feature, label, and ML reproduction commands are in the
 [Phase 6 guide](docs/phase-6.md).
 The local MLflow setup and inspection commands are in the
 [Phase 7 guide](docs/phase-7.md).
+The local API run command, request example, and interpretation limits are in
+the [Phase 8 guide](docs/phase-8.md).
 
 Stop the local services while preserving Kafka and PostgreSQL named-volume data:
 

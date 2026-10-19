@@ -115,5 +115,6 @@ verified by these local integration checks, not by an automated MLflow test.
 The local registry and artifacts are not durable team infrastructure. The
 runs record feature columns, date windows, class counts, hyperparameters, and
 metrics, but not source-file checksums or a fully portable data snapshot.
-Model serving, access control, monitoring, calibration checks, and a policy
-for changing the candidate alias remain future work.
+The local feature-input scoring API is documented in [Phase 8](phase-8.md).
+Access control, monitoring, calibration checks, live feature retrieval, and a
+policy for changing the candidate alias remain future work.
