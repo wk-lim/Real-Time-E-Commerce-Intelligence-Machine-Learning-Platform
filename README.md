@@ -58,7 +58,7 @@ Docker Compose provides reproducible local services.
 
 ## Project status
 
-**Phase 9 local Streamlit purchase-scoring dashboard verified**
+**Phase 10 baseline host-test CI verified**
 
 Phase 1 provides the Synerise data, contracts, Kafka topics, and historical
 replay. Phase 2 consumes event and product topics with Spark, validates records,
@@ -87,6 +87,9 @@ features or provide a production deployment.
 Phase 9 adds a loopback-only Streamlit form for entering a precomputed feature
 snapshot and viewing the Phase 8 API scores. It does not retrieve live client
 features or explain non-purchase.
+The first Phase 10 slice runs the host Python tests on pull requests and
+`main` across Python 3.10 and 3.13. It does not run the database, Spark,
+dbt, Airflow, or deployment paths.
 
 Completed objectives:
 
@@ -115,6 +118,7 @@ Completed objectives:
 - [x] Track selected validation runs and reload registered candidate models
 - [x] Test local feature-input scoring through FastAPI and registered models
 - [x] Verify local Streamlit scoring and unavailable-API handling
+- [x] Verify host-test CI on Python 3.10 and 3.13
 
 See the [Phase 0 guide](docs/phase-0.md),
 [Phase 1 guide](docs/phase-1.md), and
@@ -133,6 +137,8 @@ The [Phase 8 guide](docs/phase-8.md) covers local feature-input scoring,
 request semantics, verification, and serving limits.
 The [Phase 9 guide](docs/phase-9.md) covers the local dashboard, smoke check,
 automated tests, and interpretation limits.
+The [Phase 10 guide](docs/phase-10.md) covers the baseline CI workflow,
+verification, and checks that remain outside its scope.
 
 ## Development approach
 
@@ -280,6 +286,8 @@ The local API run command, request example, and interpretation limits are in
 the [Phase 8 guide](docs/phase-8.md).
 The dashboard run command, manual smoke check, and limitations are in the
 [Phase 9 guide](docs/phase-9.md).
+The host-test CI workflow and its limitations are in the
+[Phase 10 guide](docs/phase-10.md).
 
 Stop the local services while preserving Kafka and PostgreSQL named-volume data:
 
