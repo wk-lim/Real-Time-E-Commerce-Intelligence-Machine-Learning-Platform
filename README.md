@@ -58,7 +58,7 @@ Docker Compose provides reproducible local services.
 
 ## Project status
 
-**Phase 8 local FastAPI feature-input scoring verified**
+**Phase 9 local Streamlit purchase-scoring dashboard verified**
 
 Phase 1 provides the Synerise data, contracts, Kafka topics, and historical
 replay. Phase 2 consumes event and product topics with Spark, validates records,
@@ -84,6 +84,9 @@ verifies model reloads, and registers candidate versions without promoting
 them to production. Phase 8 adds a loopback-only FastAPI endpoint that scores
 a supplied, precomputed feature snapshot. It does not retrieve live client
 features or provide a production deployment.
+Phase 9 adds a loopback-only Streamlit form for entering a precomputed feature
+snapshot and viewing the Phase 8 API scores. It does not retrieve live client
+features or explain non-purchase.
 
 Completed objectives:
 
@@ -111,6 +114,7 @@ Completed objectives:
 - [x] Select purchase and timing baselines, then evaluate a temporal holdout
 - [x] Track selected validation runs and reload registered candidate models
 - [x] Test local feature-input scoring through FastAPI and registered models
+- [x] Verify local Streamlit scoring and unavailable-API handling
 
 See the [Phase 0 guide](docs/phase-0.md),
 [Phase 1 guide](docs/phase-1.md), and
@@ -127,6 +131,8 @@ The [Phase 7 guide](docs/phase-7.md) covers local MLflow tracking, candidate
 model registration, and current management limits.
 The [Phase 8 guide](docs/phase-8.md) covers local feature-input scoring,
 request semantics, verification, and serving limits.
+The [Phase 9 guide](docs/phase-9.md) covers the local dashboard, smoke check,
+automated tests, and interpretation limits.
 
 ## Development approach
 
@@ -205,6 +211,12 @@ For Phase 8 local API development and tests, add the serving extra:
 python -m pip install --editable ".[dev,ml,tracking,serving]"
 ```
 
+For Phase 9 local dashboard development and tests, add the dashboard extra:
+
+```powershell
+python -m pip install --editable ".[dev,ml,tracking,serving,dashboard]"
+```
+
 Preview three records without publishing to Kafka:
 
 ```powershell
@@ -251,7 +263,7 @@ Run the automated test suite:
 python -m pytest
 ```
 
-The default host suite currently has 81 passing tests and one skipped
+The default host suite currently has 83 passing tests and one skipped
 PostgreSQL-dependent integration test. The integration test passed when
 enabled locally and verified rollback, retry, and resume behavior. Phase 2
 Spark parsing, validation, and streaming checks run in the Spark container;
@@ -266,6 +278,8 @@ The local MLflow setup and inspection commands are in the
 [Phase 7 guide](docs/phase-7.md).
 The local API run command, request example, and interpretation limits are in
 the [Phase 8 guide](docs/phase-8.md).
+The dashboard run command, manual smoke check, and limitations are in the
+[Phase 9 guide](docs/phase-9.md).
 
 Stop the local services while preserving Kafka and PostgreSQL named-volume data:
 
