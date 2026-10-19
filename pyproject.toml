@@ -18,6 +18,7 @@ ecommerce-replay = "ecommerce_intelligence.ingestion.replay:main"
 [project.optional-dependencies]
 dev = [
     "pytest==9.1.*",
+    "httpx2==2.13.*"
 ]
 analytics = [
     "dbt-core==1.11.*",
@@ -28,6 +29,9 @@ ml = [
 ]
 tracking = [
     "mlflow==3.17.*",
+]
+serving = [
+    "fastapi[standard]==0.143.*",
 ]
 
 [build-system]
